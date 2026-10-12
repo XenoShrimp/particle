@@ -1,152 +1,339 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
-  <title>Particle Playground</title>
-  <style>
-    * { box-sizing: border-box; }
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: #000;
-      overscroll-behavior: none;
-      touch-action: none;
-    }
-    canvas {
-      display: block;
-      width: 100%;
-      height: 100%;
-      touch-action: none;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Particle Toy</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+  canvas { display: block; touch-action: none; }
+
+  #settings-btn {
+    position: fixed;
+    bottom: 14px;
+    right: 14px;
+    width: 28px;
+    height: 28px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.18);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    transition: background 0.2s;
+    color: rgba(255,255,255,0.55);
+    font-size: 14px;
+    user-select: none;
+  }
+  #settings-btn:hover { background: rgba(255,255,255,0.15); }
+
+  #panel {
+    position: fixed;
+    bottom: 52px;
+    right: 14px;
+    width: 220px;
+    background: rgba(10,10,10,0.92);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 12px;
+    padding: 16px 16px 12px;
+    z-index: 99;
+    display: none;
+    font-family: system-ui, sans-serif;
+    font-size: 12px;
+    color: rgba(255,255,255,0.7);
+    backdrop-filter: blur(10px);
+  }
+  #panel.open { display: block; }
+  #panel h3 {
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.35);
+    margin-bottom: 12px;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    gap: 10px;
+  }
+  .row label { flex-shrink: 0; color: rgba(255,255,255,0.6); }
+  .row input[type=range] {
+    flex: 1;
+    -webkit-appearance: none;
+    height: 3px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 2px;
+    outline: none;
+  }
+  .row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.75);
+    cursor: pointer;
+  }
+  .row span { width: 26px; text-align: right; font-size: 11px; color: rgba(255,255,255,0.4); }
+  .divider { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 8px 0 10px; }
+</style>
 </head>
 <body>
-<canvas id="playground" aria-label="Interactive colored particle playground"></canvas>
+<canvas id="c"></canvas>
+
+<div id="settings-btn" title="Settings">⚙</div>
+<div id="panel">
+  <h3>Settings</h3>
+
+  <div class="row"><label>Particles</label>
+    <input type="range" id="s-count" min="200" max="3000" step="50" value="1200">
+    <span id="v-count">1200</span>
+  </div>
+  <div class="row"><label>Speed</label>
+    <input type="range" id="s-speed" min="0.5" max="8" step="0.1" value="2.5">
+    <span id="v-speed">2.5</span>
+  </div>
+  <div class="row"><label>Attract</label>
+    <input type="range" id="s-attract" min="0.1" max="4" step="0.05" value="0.9">
+    <span id="v-attract">0.9</span>
+  </div>
+  <div class="row"><label>Overshoot</label>
+    <input type="range" id="s-overshoot" min="0.5" max="3" step="0.05" value="1.35">
+    <span id="v-overshoot">1.35</span>
+  </div>
+  <div class="row"><label>Turn spd</label>
+    <input type="range" id="s-turn" min="0.01" max="0.3" step="0.005" value="0.06">
+    <span id="v-turn">0.06</span>
+  </div>
+  <div class="row"><label>Radius</label>
+    <input type="range" id="s-radius" min="50" max="400" step="10" value="160">
+    <span id="v-radius">160</span>
+  </div>
+  <hr class="divider">
+  <div class="row"><label>Trail</label>
+    <input type="range" id="s-trail" min="0.02" max="0.35" step="0.01" value="0.18">
+    <span id="v-trail">0.18</span>
+  </div>
+  <div class="row"><label>Size</label>
+    <input type="range" id="s-size" min="0.5" max="4" step="0.1" value="1.5">
+    <span id="v-size">1.5</span>
+  </div>
+</div>
+
 <script>
-(() => {
-  const canvas = document.getElementById('playground');
-  const ctx = canvas.getContext('2d', { alpha: false });
-  const colors = [
-    '#ff3864', '#ff8a35', '#ffd447', '#a7ff4f',
-    '#38f5bd', '#35d9ff', '#5487ff', '#a879ff',
-    '#f45cff', '#ff77bd'
-  ];
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
 
-  let width = 0, height = 0, dpr = 1;
-  let particles = [];
-  const pointer = { x: -1000, y: -1000, px: -1000, py: -1000, down: false, active: false };
-  const random = (min, max) => min + Math.random() * (max - min);
+// ── Settings ──────────────────────────────────────────────
+const cfg = {
+  count: 1200,
+  speed: 2.5,
+  attract: 0.9,
+  overshoot: 1.35,
+  turn: 0.06,
+  radius: 160,
+  trail: 0.18,
+  size: 1.5,
+};
 
-  function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+// ── Resize ─────────────────────────────────────────────────
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', () => { resize(); initParticles(); });
 
-    const count = Math.min(650, Math.max(180, Math.floor(width * height / 1500)));
-    particles = Array.from({ length: count }, () => ({
-      x: random(0, width), y: random(0, height),
-      vx: random(-0.55, 0.55), vy: random(-0.55, 0.55),
-      radius: random(1.4, 3.8),
-      color: colors[Math.floor(Math.random() * colors.length)],
-      phase: random(0, Math.PI * 2)
-    }));
+// ── Pointer tracking (multi-touch + mouse) ─────────────────
+let pointers = []; // [{x, y}, ...]
+
+canvas.addEventListener('mousemove', e => {
+  pointers = [{ x: e.clientX, y: e.clientY }];
+});
+canvas.addEventListener('mouseleave', () => { pointers = []; });
+canvas.addEventListener('mousedown', e => {
+  pointers = [{ x: e.clientX, y: e.clientY }];
+});
+
+canvas.addEventListener('touchstart', handleTouch, { passive: true });
+canvas.addEventListener('touchmove', handleTouch, { passive: true });
+canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+canvas.addEventListener('touchcancel', handleTouchEnd, { passive: true });
+
+function handleTouch(e) {
+  pointers = [];
+  for (let t of e.touches) {
+    pointers.push({ x: t.clientX, y: t.clientY });
   }
-
-  function movePointer(event) {
-    const rect = canvas.getBoundingClientRect();
-    pointer.px = pointer.x;
-    pointer.py = pointer.y;
-    pointer.x = event.clientX - rect.left;
-    pointer.y = event.clientY - rect.top;
-    pointer.active = true;
+}
+function handleTouchEnd(e) {
+  pointers = [];
+  for (let t of e.touches) {
+    pointers.push({ x: t.clientX, y: t.clientY });
   }
+}
 
-  canvas.addEventListener('pointerdown', event => {
-    movePointer(event);
-    pointer.down = true;
-    try { canvas.setPointerCapture(event.pointerId); } catch (_) {}
-  });
-  canvas.addEventListener('pointermove', movePointer);
-  function releasePointer() { pointer.down = false; }
-  canvas.addEventListener('pointerup', releasePointer);
-  canvas.addEventListener('pointercancel', releasePointer);
-  canvas.addEventListener('pointerleave', event => {
-    if (event.pointerType === 'mouse' && !pointer.down) pointer.active = false;
-  });
-  window.addEventListener('resize', resize, { passive: true });
+// ── Color from pointer position ────────────────────────────
+function getHue() {
+  if (pointers.length === 0) return globalHue;
+  // average position for hue when multi-touch
+  let ax = 0, ay = 0;
+  for (let p of pointers) { ax += p.x; ay += p.y; }
+  ax /= pointers.length; ay /= pointers.length;
+  const hx = ax / canvas.width;
+  const hy = ay / canvas.height;
+  return (hx * 280 + hy * 80) % 360;
+}
 
-  function animate(time) {
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
-    ctx.fillRect(0, 0, width, height);
+let globalHue = 200;
+let targetHue = 200;
 
-    const influence = pointer.down ? 155 : 105;
-    for (const p of particles) {
-      p.phase += 0.015;
-      p.vx += Math.cos(p.phase) * 0.006;
-      p.vy += Math.sin(p.phase * 1.17) * 0.006;
+// ── Particles ──────────────────────────────────────────────
+let particles = [];
 
-      if (pointer.active) {
-        const dx = p.x - pointer.x;
-        const dy = p.y - pointer.y;
-        const dist2 = dx * dx + dy * dy;
-        if (dist2 < influence * influence && dist2 > 0.1) {
-          const dist = Math.sqrt(dist2);
-          const falloff = 1 - dist / influence;
-          const force = (pointer.down ? 1.9 : 0.55) * falloff;
-          // A moving finger creates a swirl; holding still gently pushes particles away.
-          const swipeX = pointer.x - pointer.px;
-          const swipeY = pointer.y - pointer.py;
-          p.vx += (dx / dist) * force + (-dy / dist) * Math.min(1.5, Math.abs(swipeX) * 0.025) * falloff;
-          p.vy += (dy / dist) * force + (dx / dist) * Math.min(1.5, Math.abs(swipeY) * 0.025) * falloff;
-          if (pointer.down) {
-            p.vx += swipeX * 0.018 * falloff;
-            p.vy += swipeY * 0.018 * falloff;
-          }
-        }
+function initParticles() {
+  particles = [];
+  for (let i = 0; i < cfg.count; i++) {
+    particles.push({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2,
+      phase: Math.random() > 0.5 ? 1 : -1, // overshooting direction
+    });
+  }
+}
+initParticles();
+
+// ── Goal point when two fingers: midpoint ─────────────────
+function getGoals() {
+  if (pointers.length === 0) return [];
+  if (pointers.length === 1) return [pointers[0]];
+  // Two+ fingers: use midpoint as the attractor
+  let ax = 0, ay = 0;
+  for (let p of pointers) { ax += p.x; ay += p.y; }
+  return [{ x: ax / pointers.length, y: ay / pointers.length }];
+}
+
+// ── Animation loop ─────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+function angleDiff(a, b) {
+  let d = b - a;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+let lastTime = 0;
+function frame(ts) {
+  const dt = Math.min((ts - lastTime) / 16.67, 3); // normalized to ~60fps steps
+  lastTime = ts;
+
+  // Fade trail
+  ctx.fillStyle = `rgba(0,0,0,${cfg.trail})`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Update hue
+  targetHue = pointers.length > 0 ? getHue() : globalHue;
+  globalHue = lerp(globalHue, targetHue, 0.04 * dt);
+
+  const goals = getGoals();
+  const col = `hsl(${globalHue|0},100%,65%)`;
+
+  for (let p of particles) {
+    if (goals.length > 0) {
+      const g = goals[0];
+      const dx = g.x - p.x;
+      const dy = g.y - p.y;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 0.001;
+
+      // Direction to goal
+      const goalAngle = Math.atan2(dy, dx);
+      // Current velocity angle
+      const velAngle = Math.atan2(p.vy, p.vx);
+
+      // Inside radius: particle overshoots → we flip to repel a bit
+      let desiredAngle;
+      if (dist < cfg.radius) {
+        // Moving past the finger → steer back (orbit / pendulum effect)
+        desiredAngle = goalAngle + Math.PI * cfg.overshoot;
+      } else {
+        desiredAngle = goalAngle;
       }
 
-      p.vx *= 0.986;
-      p.vy *= 0.986;
-      const maxSpeed = pointer.down ? 12 : 4.2;
-      const speed = Math.hypot(p.vx, p.vy);
-      if (speed > maxSpeed) {
-        p.vx = p.vx / speed * maxSpeed;
-        p.vy = p.vy / speed * maxSpeed;
-      }
-      p.x += p.vx;
-      p.y += p.vy;
+      // Steer toward desired angle (turn speed)
+      const diff = angleDiff(velAngle, desiredAngle);
+      const steer = Math.min(Math.abs(diff), cfg.turn * dt) * Math.sign(diff);
+      const newAngle = velAngle + steer;
 
-      // Wrap around the edges.
-      if (p.x < -8) p.x = width + 8;
-      if (p.x > width + 8) p.x = -8;
-      if (p.y < -8) p.y = height + 8;
-      if (p.y > height + 8) p.y = -8;
-
-      ctx.globalAlpha = 0.65 + Math.sin(p.phase) * 0.25;
-      ctx.fillStyle = p.color;
-      ctx.shadowColor = p.color;
-      ctx.shadowBlur = p.radius * 3.5;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-      ctx.fill();
+      // Acceleration toward goal inversely proportional to dist (capped)
+      const force = Math.min(cfg.attract / (dist * 0.01 + 1), 0.8) * dt;
+      p.vx = Math.cos(newAngle) * (Math.hypot(p.vx, p.vy) + force * 0.3);
+      p.vy = Math.sin(newAngle) * (Math.hypot(p.vx, p.vy) + force * 0.3);
     }
-    ctx.globalAlpha = 1;
-    ctx.shadowBlur = 0;
-    pointer.px = pointer.x;
-    pointer.py = pointer.y;
-    requestAnimationFrame(animate);
+
+    // Clamp speed
+    const spd = Math.hypot(p.vx, p.vy);
+    const maxSpd = cfg.speed * (1 + Math.random() * 0.3);
+    if (spd > maxSpd) {
+      p.vx = (p.vx / spd) * maxSpd;
+      p.vy = (p.vy / spd) * maxSpd;
+    }
+    // Min speed so they keep drifting when no pointer
+    if (spd < 0.3 && goals.length === 0) {
+      p.vx += (Math.random() - 0.5) * 0.2;
+      p.vy += (Math.random() - 0.5) * 0.2;
+    }
+
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+
+    // Wrap edges
+    if (p.x < 0) p.x += canvas.width;
+    if (p.x > canvas.width) p.x -= canvas.width;
+    if (p.y < 0) p.y += canvas.height;
+    if (p.y > canvas.height) p.y -= canvas.height;
+
+    // Draw
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, cfg.size, 0, Math.PI * 2);
+    ctx.fillStyle = col;
+    ctx.fill();
   }
 
-  resize();
-  requestAnimationFrame(animate);
-})();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// ── Settings panel ─────────────────────────────────────────
+const btn = document.getElementById('settings-btn');
+const panel = document.getElementById('panel');
+btn.addEventListener('click', () => panel.classList.toggle('open'));
+
+function bindSlider(id, key, rebuild) {
+  const el = document.getElementById('s-' + id);
+  const vEl = document.getElementById('v-' + id);
+  el.value = cfg[key];
+  vEl.textContent = cfg[key];
+  el.addEventListener('input', () => {
+    cfg[key] = parseFloat(el.value);
+    vEl.textContent = el.value;
+    if (rebuild) initParticles();
+  });
+}
+
+bindSlider('count', 'count', true);
+bindSlider('speed', 'speed', false);
+bindSlider('attract', 'attract', false);
+bindSlider('overshoot', 'overshoot', false);
+bindSlider('turn', 'turn', false);
+bindSlider('radius', 'radius', false);
+bindSlider('trail', 'trail', false);
+bindSlider('size', 'size', false);
 </script>
 </body>
 </html>
